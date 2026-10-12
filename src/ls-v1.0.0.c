@@ -26,6 +26,7 @@ void do_ls(const char *dir);
 void do_long_listing(const char *dir);
 void print_permissions(mode_t mode);
 void do_column_ls(const char *dir);
+void do_horizontal_ls(const char *dir);
 
 void print_permissions(mode_t mode)
 {
@@ -111,14 +112,17 @@ int main(int argc, char const *argv[])
 {
     int opt;
     int long_format = 0;
+    int horizontal_format = 0;
 
-    while ((opt = getopt(argc, (char * const *)argv, "l")) != -1)
+    while ((opt = getopt(argc, (char * const *)argv, "lx")) != -1)
     {
         if (opt == 'l')
             long_format = 1;
+        else if (opt == 'x')
+            horizontal_format = 1;
         else
         {
-            fprintf(stderr, "Usage: %s [-l] [directory]\n", argv[0]);
+            fprintf(stderr, "Usage: %s [-l] [-x] [directory]\n", argv[0]);
             return 1;
         }
     }
@@ -130,18 +134,22 @@ int main(int argc, char const *argv[])
             printf("Directory listing of %s:\n", argv[i]);
 
             if (long_format)
-                do_long_listing(argv[i]);
-            else
-                do_column_ls(argv[i]);
+               do_long_listing(argv[i]);
+            else if (horizontal_format)
+               do_horizontal_ls(argv[i]);
+             else
+               do_column_ls(argv[i]);
 
             puts("");
         }
     }
     else
     {
-        if (long_format)
+         if (long_format)
             do_long_listing(".");
-        else
+         else if (horizontal_format)
+            do_horizontal_ls(".");
+         else
             do_column_ls(".");
     }
 
@@ -287,3 +295,110 @@ void do_column_ls(const char *dir)
     free(filenames);
 }
 
+
+void do_horizontal_ls(const char *dir)
+{
+    DIR *dp = opendir(dir);
+    struct dirent *entry;
+
+    if (dp == NULL)
+    {
+        perror(dir);
+        return;
+    }
+
+    char **filenames = NULL;
+    size_t count = 0;
+    size_t capacity = 0;
+    size_t max_length = 0;
+
+    while ((entry = readdir(dp)) != NULL)
+    {
+        if (entry->d_name[0] == '.')
+            continue;
+
+        size_t len = strlen(entry->d_name);
+
+        if (count == capacity)
+        {
+            size_t new_capacity = capacity == 0 ? 16 : capacity * 2;
+            char **temp = realloc(filenames,
+                                  new_capacity * sizeof(char *));
+
+            if (temp == NULL)
+            {
+                perror("realloc");
+                for (size_t i = 0; i < count; i++)
+                    free(filenames[i]);
+                free(filenames);
+                closedir(dp);
+                return;
+            }
+
+            filenames = temp;
+            capacity = new_capacity;
+        }
+
+        filenames[count] = malloc(len + 1);
+
+        if (filenames[count] == NULL)
+        {
+            perror("malloc");
+            for (size_t i = 0; i < count; i++)
+                free(filenames[i]);
+            free(filenames);
+            closedir(dp);
+            return;
+        }
+
+        strcpy(filenames[count], entry->d_name);
+
+        if (len > max_length)
+            max_length = len;
+
+        count++;
+    }
+
+    closedir(dp);
+
+    if (count == 0)
+    {
+        free(filenames);
+        return;
+    }
+
+    struct winsize ws;
+    size_t terminal_width = 80;
+
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0 &&
+        ws.ws_col > 0)
+    {
+        terminal_width = ws.ws_col;
+    }
+
+    size_t column_width = max_length + 2;
+    size_t current_width = 0;
+
+    for (size_t i = 0; i < count; i++)
+    {
+        size_t name_length = strlen(filenames[i]);
+        size_t required_width = name_length;
+
+        if (current_width > 0 &&
+            current_width + required_width > terminal_width)
+        {
+            putchar('\n');
+            current_width = 0;
+        }
+
+        printf("%-*s", (int)column_width, filenames[i]);
+        current_width += column_width;
+    }
+
+    putchar('\n');
+
+    for (size_t i = 0; i < count; i++)
+        free(filenames[i]);
+
+    free(filenames);
+}
