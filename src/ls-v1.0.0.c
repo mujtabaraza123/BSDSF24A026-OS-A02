@@ -36,6 +36,36 @@ int compare_names(const void *a, const void *b)
     return strcmp(name1, name2);
 }
 
+
+#define COLOR_RESET   "\033[0m"
+#define COLOR_BLUE    "\033[0;34m"
+#define COLOR_GREEN   "\033[0;32m"
+#define COLOR_RED     "\033[0;31m"
+#define COLOR_PINK    "\033[0;35m"
+#define COLOR_REVERSE "\033[7m"
+
+void print_colored_name(const char *name, mode_t mode)
+{
+    const char *color = COLOR_RESET;
+
+    if (S_ISLNK(mode))
+        color = COLOR_PINK;
+    else if (S_ISDIR(mode))
+        color = COLOR_BLUE;
+    else if (S_ISCHR(mode) || S_ISBLK(mode) ||
+             S_ISFIFO(mode) || S_ISSOCK(mode))
+        color = COLOR_REVERSE;
+    else if (strstr(name, ".tar") != NULL ||
+             strstr(name, ".gz") != NULL ||
+             strstr(name, ".zip") != NULL)
+        color = COLOR_RED;
+    else if (mode & (S_IXUSR | S_IXGRP | S_IXOTH))
+        color = COLOR_GREEN;
+
+    printf("%s%s%s", color, name, COLOR_RESET);
+}
+
+
 void print_permissions(mode_t mode)
 {
     char p[11];
@@ -163,7 +193,8 @@ void do_long_listing(const char *dir)
             printf("%s ", time_str);
         }
 
-        printf("%s\n", filenames[i]);
+        print_colored_name(filenames[i], file_stat.st_mode);
+        putchar('\n');
         free(filenames[i]);
     }
 
@@ -348,9 +379,20 @@ void do_column_ls(const char *dir)
             if (index >= count)
                 continue;
 
-            printf("%-*s", (int)column_width, filenames[index]);
-        }
+                        char path[1024];
+            struct stat file_stat;
 
+            snprintf(path, sizeof(path), "%s/%s",
+                     dir, filenames[index]);
+
+            if (lstat(path, &file_stat) == 0)
+                print_colored_name(filenames[index], file_stat.st_mode);
+            else
+                printf("%s", filenames[index]);
+
+            printf("%*s",
+                   (int)(column_width - strlen(filenames[index])), "");
+        }
         putchar('\n');
     }
 
@@ -458,7 +500,17 @@ void do_horizontal_ls(const char *dir)
             current_width = 0;
         }
 
-        printf("%-*s", (int)column_width, filenames[i]);
+        char path[1024];
+        struct stat file_stat;
+
+        snprintf(path, sizeof(path), "%s/%s", dir, filenames[i]);
+
+        if (lstat(path, &file_stat) == 0)
+            print_colored_name(filenames[i], file_stat.st_mode);
+        else
+            printf("%s", filenames[i]);
+
+        printf("%*s", (int)(column_width - name_length), "");
         current_width += column_width;
     }
 
