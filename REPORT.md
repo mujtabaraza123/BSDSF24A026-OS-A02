@@ -60,3 +60,27 @@ The program uses the `qsort()` function to sort filenames alphabetically. A comp
 ### Q2. How does sorting work with different display modes?
 
 The program sorts filenames in the default column display, horizontal display using `-x`, and long listing using `-l`. Each display function sorts the filenames before printing them, so all three modes show entries in alphabetical order.
+
+
+### Feature 6: Colorized Output Based on File Type
+
+**Q1. How do ANSI escape codes work to produce color in a standard Linux terminal? Show the specific code sequence for printing text in green.**
+
+**Answer:** ANSI escape codes are special character sequences that control text colors and styles in a Linux terminal. The sequence `\033[0;32m` sets the text color to green, and `\033[0m` resets it to the default color.
+
+Example:
+```c
+printf("\033[0;32mGreen Text\033[0m\n");
+```
+
+**Q2. To color an executable file, you need to check its permission bits. Explain which bits in the `st_mode` field you need to check to determine if a file is executable by the owner, group, or others.**
+
+**Answer:** The `st_mode` field contains permission bits that indicate whether the owner, group, or others can execute a file. The bits are `S_IXUSR` for the owner, `S_IXGRP` for the group, and `S_IXOTH` for others. If any of these bits is set, the file has an execute permission.
+
+Example:
+```c
+if (mode & (S_IXUSR | S_IXGRP | S_IXOTH))
+{
+    /* Print filename in green */
+}
+```
