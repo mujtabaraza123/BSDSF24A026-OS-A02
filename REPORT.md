@@ -84,3 +84,13 @@ if (mode & (S_IXUSR | S_IXGRP | S_IXOTH))
     /* Print filename in green */
 }
 ```
+
+### Feature 7: Recursive Listing (-R)
+
+**Q1. In a recursive function, what is a "base case"? In the context of your recursive ls, what is the base case that stops the recursion from continuing forever?**
+
+**Answer:** A base case is the condition that stops recursion. In our recursive `ls`, recursion stops when a directory has no more subdirectories to visit. The program also skips `.` and `..` entries to prevent repeatedly visiting the current and parent directories.
+
+**Q2. Explain why it is essential to construct a full path (e.g., "parent_dir/subdir") before making a recursive call. What would happen if you simply called do_ls("subdir") from within the do_ls("parent_dir") function call?**
+
+**Answer:** Constructing the full path ensures the program opens the correct subdirectory relative to its parent. If we call `do_ls("subdir")`, the program looks for `subdir` relative to the current working directory, not necessarily inside `parent_dir`. This can cause the wrong directory to be listed or the directory to fail to open.

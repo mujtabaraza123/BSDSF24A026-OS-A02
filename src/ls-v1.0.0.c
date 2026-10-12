@@ -203,21 +203,103 @@ void do_long_listing(const char *dir)
 
 
 
+void do_recursive_ls(const char *dir, int long_format,
+                     int horizontal_format)
+{
+    DIR *dp = opendir(dir);
+    struct dirent *entry;
+
+    if (dp == NULL)
+    {
+        perror(dir);
+        return;
+    }
+
+    char **names = NULL;
+    size_t count = 0, capacity = 0;
+
+    while ((entry = readdir(dp)) != NULL)
+    {
+        if (entry->d_name[0] == '.')
+            continue;
+
+        if (count == capacity)
+        {
+            size_t new_capacity = capacity == 0 ? 16 : capacity * 2;
+            char **temp = realloc(names, new_capacity * sizeof(char *));
+
+            if (temp == NULL)
+            {
+                perror("realloc");
+                break;
+            }
+
+            names = temp;
+            capacity = new_capacity;
+        }
+
+        names[count] = malloc(strlen(entry->d_name) + 1);
+        if (names[count] == NULL)
+        {
+            perror("malloc");
+            break;
+        }
+
+        strcpy(names[count], entry->d_name);
+        count++;
+    }
+
+    closedir(dp);
+    qsort(names, count, sizeof(char *), compare_names);
+
+    printf("%s:\n", dir);
+
+    if (long_format)
+        do_long_listing(dir);
+    else if (horizontal_format)
+        do_horizontal_ls(dir);
+    else
+        do_column_ls(dir);
+
+    for (size_t i = 0; i < count; i++)
+    {
+        char path[4096];
+        struct stat st;
+
+        int n = snprintf(path, sizeof(path), "%s/%s", dir, names[i]);
+
+        if (n >= 0 && (size_t)n < sizeof(path) &&
+            lstat(path, &st) == 0 && S_ISDIR(st.st_mode))
+        {
+            putchar('\n');
+            do_recursive_ls(path, long_format, horizontal_format);
+        }
+
+        free(names[i]);
+    }
+
+    free(names);
+}
+
 int main(int argc, char const *argv[])
 {
     int opt;
     int long_format = 0;
     int horizontal_format = 0;
+    int recursive_flag = 0;
 
-    while ((opt = getopt(argc, (char * const *)argv, "lx")) != -1)
+    while ((opt = getopt(argc, (char * const *)argv, "lxR")) != -1)
     {
         if (opt == 'l')
             long_format = 1;
         else if (opt == 'x')
             horizontal_format = 1;
+        else if (opt == 'R')
+            recursive_flag = 1;
         else
         {
-            fprintf(stderr, "Usage: %s [-l] [-x] [directory]\n", argv[0]);
+            fprintf(stderr, "Usage: %s [-l] [-x] [-R] [directory]\n",
+                    argv[0]);
             return 1;
         }
     }
@@ -226,25 +308,28 @@ int main(int argc, char const *argv[])
     {
         for (int i = optind; i < argc; i++)
         {
-            printf("Directory listing of %s:\n", argv[i]);
-
-            if (long_format)
-               do_long_listing(argv[i]);
+            if (recursive_flag)
+                do_recursive_ls(argv[i], long_format, horizontal_format);
+            else if (long_format)
+                do_long_listing(argv[i]);
             else if (horizontal_format)
-               do_horizontal_ls(argv[i]);
-             else
-               do_column_ls(argv[i]);
+                do_horizontal_ls(argv[i]);
+            else
+                do_column_ls(argv[i]);
 
-            puts("");
+            if (i + 1 < argc)
+                putchar('\n');
         }
     }
     else
     {
-         if (long_format)
+        if (recursive_flag)
+            do_recursive_ls(".", long_format, horizontal_format);
+        else if (long_format)
             do_long_listing(".");
-         else if (horizontal_format)
+        else if (horizontal_format)
             do_horizontal_ls(".");
-         else
+        else
             do_column_ls(".");
     }
 
