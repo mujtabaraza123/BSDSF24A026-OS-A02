@@ -39,3 +39,13 @@ The program first stores all visible filenames in a dynamically allocated array 
 ### Q2. What is the purpose of `ioctl()`? What are the limitations of a fixed 80-column fallback?
 
 The `ioctl()` system call with `TIOCGWINSZ` obtains the current terminal dimensions, including its width. This allows the program to adjust the number of columns to the terminal size. A fixed 80-column fallback may cause poor alignment or wrapping when the actual terminal is narrower or wider than 80 columns.
+
+## Feature 4: Horizontal Column Display (-x)
+
+### Q1. Compare the complexity of down-then-across and horizontal printing.
+
+Down-then-across printing requires more pre-calculation because the program must calculate the number of rows and columns before printing. Horizontal printing processes filenames from left to right and wraps to the next line when the terminal width is reached.
+
+### Q2. How does the program manage the display modes (-l, -x, and default)?
+
+The program uses flags to select the display mode. The `-l` option sets `long_format`, while `-x` sets `horizontal_format`. If `-l` is selected, `do_long_listing()` is called. Otherwise, if `-x` is selected, `do_horizontal_ls()` is called. If neither option is selected, `do_column_ls()` provides the default down-then-across display.
