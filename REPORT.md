@@ -49,3 +49,14 @@ Down-then-across printing requires more pre-calculation because the program must
 ### Q2. How does the program manage the display modes (-l, -x, and default)?
 
 The program uses flags to select the display mode. The `-l` option sets `long_format`, while `-x` sets `horizontal_format`. If `-l` is selected, `do_long_listing()` is called. Otherwise, if `-x` is selected, `do_horizontal_ls()` is called. If neither option is selected, `do_column_ls()` provides the default down-then-across display.
+
+
+## Feature 5: Alphabetical Sort
+
+### Q1. How is alphabetical sorting implemented?
+
+The program uses the `qsort()` function to sort filenames alphabetically. A comparison function named `compare_names()` compares two filenames using `strcmp()`. The filenames are sorted before they are displayed.
+
+### Q2. How does sorting work with different display modes?
+
+The program sorts filenames in the default column display, horizontal display using `-x`, and long listing using `-l`. Each display function sorts the filenames before printing them, so all three modes show entries in alphabetical order.

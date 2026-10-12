@@ -28,6 +28,14 @@ void print_permissions(mode_t mode);
 void do_column_ls(const char *dir);
 void do_horizontal_ls(const char *dir);
 
+int compare_names(const void *a, const void *b)
+{
+    const char *name1 = *(const char **)a;
+    const char *name2 = *(const char **)b;
+
+    return strcmp(name1, name2);
+}
+
 void print_permissions(mode_t mode)
 {
     char p[11];
@@ -61,6 +69,7 @@ void print_permissions(mode_t mode)
     printf("%s", p);
 }
 
+
 void do_long_listing(const char *dir)
 {
     DIR *dp = opendir(dir);
@@ -72,19 +81,67 @@ void do_long_listing(const char *dir)
         return;
     }
 
+    char **filenames = NULL;
+    size_t count = 0;
+    size_t capacity = 0;
+
     while ((entry = readdir(dp)) != NULL)
     {
         if (entry->d_name[0] == '.')
             continue;
 
+        size_t len = strlen(entry->d_name);
+
+        if (count == capacity)
+        {
+            size_t new_capacity = capacity == 0 ? 16 : capacity * 2;
+            char **temp = realloc(filenames,
+                                  new_capacity * sizeof(char *));
+
+            if (temp == NULL)
+            {
+                perror("realloc");
+                for (size_t i = 0; i < count; i++)
+                    free(filenames[i]);
+                free(filenames);
+                closedir(dp);
+                return;
+            }
+
+            filenames = temp;
+            capacity = new_capacity;
+        }
+
+        filenames[count] = malloc(len + 1);
+
+        if (filenames[count] == NULL)
+        {
+            perror("malloc");
+            for (size_t i = 0; i < count; i++)
+                free(filenames[i]);
+            free(filenames);
+            closedir(dp);
+            return;
+        }
+
+        strcpy(filenames[count], entry->d_name);
+        count++;
+    }
+
+    closedir(dp);
+
+    qsort(filenames, count, sizeof(char *), compare_names);
+
+    for (size_t i = 0; i < count; i++)
+    {
         char path[1024];
         struct stat file_stat;
 
-        snprintf(path, sizeof(path), "%s/%s", dir, entry->d_name);
+        snprintf(path, sizeof(path), "%s/%s", dir, filenames[i]);
 
         if (lstat(path, &file_stat) == -1)
         {
-            perror(entry->d_name);
+            perror(filenames[i]);
             continue;
         }
 
@@ -94,7 +151,11 @@ void do_long_listing(const char *dir)
 
         print_permissions(file_stat.st_mode);
 
-       printf(" %2lu %-8s %-8s %8lld ",(unsigned long)file_stat.st_nlink, pw ? pw->pw_name : "unknown", gr ? gr->gr_name : "unknown", (long long)file_stat.st_size);
+        printf(" %2lu %-8s %-8s %8lld ",
+               (unsigned long)file_stat.st_nlink,
+               pw ? pw->pw_name : "unknown",
+               gr ? gr->gr_name : "unknown",
+               (long long)file_stat.st_size);
 
         if (time_str != NULL)
         {
@@ -102,11 +163,14 @@ void do_long_listing(const char *dir)
             printf("%s ", time_str);
         }
 
-        printf("%s\n", entry->d_name);
+        printf("%s\n", filenames[i]);
+        free(filenames[i]);
     }
 
-    closedir(dp);
+    free(filenames);
 }
+
+
 
 int main(int argc, char const *argv[])
 {
@@ -252,6 +316,7 @@ void do_column_ls(const char *dir)
         free(filenames);
         return;
     }
+    qsort(filenames, count, sizeof(char *), compare_names);
 
     struct winsize ws;
     size_t terminal_width = 80;
@@ -366,6 +431,8 @@ void do_horizontal_ls(const char *dir)
         free(filenames);
         return;
     }
+    
+    qsort(filenames, count, sizeof(char *), compare_names);
 
     struct winsize ws;
     size_t terminal_width = 80;
