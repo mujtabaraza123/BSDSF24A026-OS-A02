@@ -28,3 +28,14 @@ The `-l` option works successfully and displays detailed file information. Furth
 **Q2. How do bitwise operators and predefined macros extract information from `st_mode`?**
 
 The `st_mode` field contains file type and permission bits. `S_ISDIR(mode)` checks whether a file is a directory. The expression `mode & S_IRUSR` checks whether the owner has read permission. Similar macros and bit masks check other file types and permissions.
+
+
+## Feature 3: Column Display (Down Then Across)
+
+### Q1. Explain the logic of down-then-across display. Why is a simple single loop insufficient?
+
+The program first stores all visible filenames in a dynamically allocated array and finds the longest filename. It calculates the number of columns and rows using the terminal width and filename length. The program then prints filenames using `index = row + col * num_rows`, displaying entries down each column and then across the next column. A simple single loop is insufficient because it cannot arrange filenames into aligned columns in the required down-then-across order.
+
+### Q2. What is the purpose of `ioctl()`? What are the limitations of a fixed 80-column fallback?
+
+The `ioctl()` system call with `TIOCGWINSZ` obtains the current terminal dimensions, including its width. This allows the program to adjust the number of columns to the terminal size. A fixed 80-column fallback may cause poor alignment or wrapping when the actual terminal is narrower or wider than 80 columns.
